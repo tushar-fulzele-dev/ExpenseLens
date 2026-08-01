@@ -1,5 +1,6 @@
 plugins {
     id("org.jetbrains.kotlin.jvm")
+    id("org.jlleitschuh.gradle.ktlint")
 }
 
 // Plain Kotlin module — parser logic has no Android framework
