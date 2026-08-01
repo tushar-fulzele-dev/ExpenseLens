@@ -1,72 +1,90 @@
-# ExpenseLens — Project Instructions
+# ExpenseLens — SMS-Based Expense Tracker (Personal Use, India)
 
-Personal-use Android app that parses bank/card SMS into categorized expense
-data. Single-user, no backend, no Play Store distribution (v1).
+**Solo, personal-use Android app.** Sideloaded APK only — no Play Store, no AI/cloud calls, no server backend.  
+**Roadmap reference:** `expense-tracker-roadmap.md` (v3).
 
-## Module layout
+---
 
-- `:app` — application shell, navigation, DI wiring
-- `:core:domain` — use cases, plain Kotlin, no Android framework deps
-- `:core:data` — Room DB, repositories, SQLCipher
-- `:core:sms-parser` — SMS parsing engine + `test-fixtures/`
-- `:feature:dashboard` — dashboard, transaction list, account/card screens
+## 1. Scope Discipline
 
-## Privacy rule (non-negotiable)
+This is a v1 personal-use MVP. Before implementing anything, verify that it is strictly in scope.
 
-Never commit real SMS content, account/card numbers, phone numbers, real
-names, or exact balances. Only sanitized samples go in
-`core/sms-parser/test-fixtures/`. Raw originals stay in a local,
-gitignored folder (`test-fixtures/_raw/`). See that folder's README for
-the exact sanitization checklist before adding any new fixture.
+### In Scope for v1
+* **Bank Parsers:** SBI, ICICI (bank accounts)
+* **Credit Card Parsers:** ICICI, SBI, HDFC, Axis, Federal, IndusInd
+* **Pipeline:** SMS Import → Parser → Database → Categorization → Dashboard → Transaction List
+* **Inline Recategorization:** Tap a category chip (ships day one, trains `MerchantRule`)
+* **Simple Unencrypted Local Backup:** "Copy DB to Downloads" button
+* **Biometric App Lock**
 
-Repo is private. SQLCipher key lives in Android Keystore only — never a
-hardcoded string, never a committed properties file.
+### Explicitly Deferred to v2+ (Do not build without being asked)
+* Recurring transaction detection, budget alerts
+* PDF/CSV export, advanced analytics/reports screen
+* Dedicated category-management screen (custom category creation/merging)
+* Any bank/card parser outside the initial eight issuers listed above
+* Manual transaction entry UI (schema is ready via `TransactionSource`, but do not build the UI yet)
+* Play Store compliance package
 
-## Current scope (v1 — in)
+> **Rule:** If a request would add scope beyond this list, flag it before building — do not silently expand scope.
 
-Core pipeline: SMS Import → Parser → Database → Categorization →
-Dashboard → Transaction List. Plus: biometric app lock, simple local
-backup button, background sync via WorkManager.
+---
 
-Covered issuers: SBI, ICICI (bank), ICICI, SBI, HDFC, Axis, Federal,
-IndusInd (credit cards).
+## 2. Architecture & Tech Stack
 
-## Deferred scope (v1 — explicitly out)
+* **Core Language & UI:** Kotlin, Jetpack Compose, Hilt DI, MVVM + Clean Architecture
+* **Database & Security:** Room with SQLCipher encryption-at-rest; key stored in Android Keystore (never hardcoded)
+* **Background Processing:** WorkManager for background sync/reprocessing
+* **Concurrency:** StateFlow / Flow end to end (no LiveData mixing)
+* **Project Modules:** `:app`, `:core:data`, `:core:domain`, `:core:sms-parser`, `:feature:dashboard`
+* **SDK Targets:** `minSdk 26`, `targetSdk` latest stable
 
-Do not build these unless the roadmap is updated first:
-- Additional banks/cards beyond the 8 covered issuers (e.g. Kotak, PNB, etc.)
-- Recurring transaction detection
-- Budget alerts / notification digests
-- PDF/CSV export
-- Dedicated category-management screen (creating/merging custom categories)
-- Advanced reports screen
-- Play Store distribution / public listing
+---
 
-If asked to add something from this list, push back and point at this
-section rather than starting the work.
+## 3. Build, Test, & Quality Commands
 
-## Conventions
+* **Unit Tests:** `./gradlew test`
+* **Instrumented Tests:** `./gradlew connectedAndroidTest`
+* **Linting:** `./gradlew detekt` / `./gradlew ktlintCheck`
+* **Test Coverage:** Target >90% coverage on `:core:sms-parser` (highest-risk code in the app)
 
-- Rule-based categorization first (merchant keyword matching); user
-  overrides persist via `MerchantRule` and auto-apply going forward — no
-  ML/AI categorization in v1.
-- Unknown merchant → `Uncategorized`, never silently misassigned.
-- Use cases live in `:core:domain`, take repository interfaces, no
-  Android framework dependency — keeps them unit-testable without
-  instrumentation.
-- Room `@Query` + `GROUP BY` is enough for aggregation at personal-data
-  volume — skip nightly pre-aggregation jobs.
-- Target >90% coverage on the parser layer specifically; it's the
-  highest-risk code in the app.
+---
 
-## CI
+## 4. Parser Rules (The Money Feature — Test-First, Always)
 
-`.github/workflows/ci.yml` runs lint (detekt/ktlint) + unit tests on
-every PR. Should stay green on trivial/no-op PRs — if it doesn't,
-that's a CI config problem, not a "skip CI" problem.
+* **Isolation:** One `BankSmsParser` implementation per issuer. Never use a shared regex blob across banks.
+* **Fixture-First (No Exceptions):** Every parser change starts by adding/updating a sample in `core/sms-parser/test-fixtures/<issuer>/`, watching it fail against the current parser, and then fixing the parser. Never write parser logic against a guess.
+* **Filtering:** Non-transactional messages (OTP, promotional, balance-only) must be filtered out and never parsed as transactions.
+* **Deduplication:** Duplicate SMS (same amount + ref number + timestamp window) → exactly one transaction record.
+* **Fallback / Unparsed Queue:** Low-confidence or unrecognized formats route to the "unparsed" review queue. Never silently drop messages, never guess an amount, and never crash the pipeline on one bad message.
+* **Unified Flow Handling:** Debit card spends and UPI debits are NOT separate entities — they arrive as ordinary "debited from a/c" bank SMS and are handled by the bank parser, not a dedicated parser.
 
-## Ticket references
+---
 
-Commit messages should reference the ticket ID they close (e.g.
-`0.2.1`, `3.2`, `5.4`) so history stays traceable against the GitHub
-Projects board.
+## 5. Database Rules
+
+* **Migrations:** Provide migration objects for every schema change from day one. Never use `fallbackToDestructiveMigration()` in this repo, including test scaffolding.
+* **Transaction Source:** The `TransactionSource` enum is scoped to SMS only for now — do not pre-add `MANUAL`/`IMPORT` until the manual-entry feature is actively being built.
+
+---
+
+## 6. Privacy & Security — Non-Negotiable
+
+* **Sanitization:** Never commit real or unredacted SMS content (no real account numbers, phone numbers, full names, or exact balances) anywhere under `test-fixtures/`. Sanitize first.
+* **Credentials:** Never commit release keystores (`*.jks`, `*.keystore`) or any signing credentials.
+* **Encryption Key:** Never hardcode the SQLCipher key — Android Keystore only.
+* **Network Isolation:** This app makes zero network calls by design. Flag any change that would introduce a network call (including analytics or crash-reporting SDKs) before adding it.
+
+---
+
+## 7. Conventions & UI Guidelines
+
+* **Accessibility:** Add content descriptions on charts and icons; verify contrast in both light and dark themes.
+* **Pagination:** Paginate transaction lists using Paging3 rather than loading everything at once.
+* **Error Logging:** Every SMS parse failure is logged locally and routed to the unparsed queue — never silently dropped, never crashing the app.
+
+---
+
+## 8. Workflow: Picking Up a Roadmap Ticket
+
+* Always reference the specific ticket ID (e.g., `"Ticket 1.3.4"`) in your response and commit message.
+* If a ticket's acceptance criteria/test aren't fully met, state so explicitly rather than marking it done.
