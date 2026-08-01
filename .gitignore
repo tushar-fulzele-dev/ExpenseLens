@@ -1,0 +1,35 @@
+# --- Signing ---
+*.jks
+*.keystore
+keystore.properties
+
+# --- Local-only config ---
+local.properties
+CLAUDE.local.md
+
+# --- Secrets ---
+*.env
+secrets.*
+
+# --- Raw / pre-sanitization SMS data ---
+# Never commit real financial SMS content. Only sanitized samples belong
+# under core/sms-parser/test-fixtures/. Keep raw originals in a folder
+# like this, which stays local-only.
+test-fixtures/_raw/
+**/test-fixtures/_raw/
+
+# --- Build output ---
+build/
+.gradle/
+*.apk
+*.aab
+out/
+
+# --- IDE / OS ---
+.idea/
+*.iml
+.DS_Store
+local.env
+
+# --- Gradle wrapper cache (keep gradlew + gradle-wrapper.jar, ignore caches) ---
+.gradle/
