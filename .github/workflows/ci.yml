@@ -21,7 +21,9 @@ jobs:
       # Uses the gradle/actions setup-gradle action so this works even
       # before a committed Gradle wrapper (gradlew) is present.
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
 
       - name: Lint (ktlint / detekt)
         run: gradle ktlintCheck detekt --continue
