@@ -2,6 +2,9 @@ plugins {
     id("com.android.library")
     id("org.jetbrains.kotlin.android")
     id("com.google.dagger.hilt.android")
+    id("com.google.devtools.ksp")
+    id("org.jlleitschuh.gradle.ktlint")
+    id("io.gitlab.arturbosch.detekt")
 }
 
 android {
@@ -11,6 +14,11 @@ android {
     defaultConfig {
         minSdk = 26
     }
+}
+
+dependencies {
+    implementation("com.google.dagger:hilt-android:2.51.1")
+    ksp("com.google.dagger:hilt-compiler:2.51.1")
 }
 
 // TODO(0.2.1): add Room + SQLCipher dependencies once schema (Ticket
