@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.dagger.hilt.android")
+    id("org.jetbrains.kotlin.kapt")
 }
 
 android {
@@ -26,6 +27,9 @@ dependencies {
     implementation(project(":core:domain"))
     implementation(project(":core:sms-parser"))
     implementation(project(":feature:dashboard"))
+
+    implementation("com.google.dagger:hilt-android:2.51.1")
+    kapt("com.google.dagger:hilt-android-compiler:2.51.1")
 }
 
 // TODO(0.2.1): self-signed release signing config lands with Ticket
